@@ -1,5 +1,6 @@
 ﻿using RentIt.Application.Abstractions.Clock;
 using RentIt.Application.Abstractions.Messaging;
+using RentIt.Application.Exceptions;
 using RentIt.Domain.Abstractions;
 using RentIt.Domain.Apartments;
 using RentIt.Domain.Bookings;
@@ -55,17 +56,25 @@ public class ReserveBookingCommandHandler
             return Result.Failure<Guid>(ApartmentErrors.NotFound);
         }
 
-        var booking = Booking.Reserve(
-            apartment,
-            user.Id,
-            duration,
-            m_DateTimeProvider.UtcNow,
-            m_PricingService);
+        try
+        {
+            var booking = Booking.Reserve(
+                apartment,
+                user.Id,
+                duration,
+                m_DateTimeProvider.UtcNow,
+                m_PricingService);
 
-        m_BookingRepository.Add(booking);
+            m_BookingRepository.Add(booking);
 
-        await m_UnitOfWork.SaveChangesAsync(cancellationToken);
+            await m_UnitOfWork.SaveChangesAsync(cancellationToken);
 
-        return booking.Id;
+            return booking.Id;
+        }
+        catch (ConcurrencyException)
+        {
+
+            return Result.Failure<Guid>(BookingErrors.Overlap);
+        }
     }
 }
