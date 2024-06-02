@@ -1,5 +1,7 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,10 +16,14 @@ using RentIt.Domain.Bookings;
 using RentIt.Domain.Reviews;
 using RentIt.Domain.Users;
 using RentIt.Infrastructure.Authentication;
+using RentIt.Infrastructure.Authorization;
 using RentIt.Infrastructure.Clock;
 using RentIt.Infrastructure.Data;
 using RentIt.Infrastructure.Email;
 using RentIt.Infrastructure.Repositories;
+using AuthenticationOptions = RentIt.Infrastructure.Authentication.AuthenticationOptions;
+using AuthenticationService = RentIt.Infrastructure.Authentication.AuthenticationService;
+using IAuthenticationService = RentIt.Application.Abstractions.Authentication.IAuthenticationService;
 
 namespace RentIt.Infrastructure;
 
@@ -33,6 +39,8 @@ public static class DependencyInjection
         AddPersistence(services, configuration);
 
         AddAuthentication(services, configuration);
+
+        AddAuthorization(services, configuration);
 
         return services;
     }
@@ -50,7 +58,9 @@ public static class DependencyInjection
 
         services.AddTransient<AdminAuthorizationDelegatingHandler>();
 
-        services.AddHttpClient<IAuthenticationService, AuthenticationService>((serviceProvider, httpClient) =>
+        services
+            .AddHttpClient<IAuthenticationService, AuthenticationService>(
+            (serviceProvider, httpClient) =>
         {
             var keycloakOptions = serviceProvider.GetRequiredService<IOptions<KeycloakOptions>>().Value;
             httpClient.BaseAddress = new Uri(keycloakOptions.AdminUrl);
@@ -62,6 +72,21 @@ public static class DependencyInjection
             var keycloakOptions = serviceProvider.GetRequiredService<IOptions<KeycloakOptions>>().Value;
             httpClient.BaseAddress = new Uri(keycloakOptions.TokenUrl);
         });
+
+        services.AddHttpContextAccessor();
+
+        services.AddScoped<IUserContext, UserContext>();
+    }
+
+    private static void AddAuthorization(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<AuthorizationService>();
+
+        services.AddTransient<IClaimsTransformation, CustomClaimTransformation>();
+
+        services.AddTransient<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+        services.AddTransient<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
     }
 
     private static void AddPersistence(IServiceCollection services, IConfiguration configuration)

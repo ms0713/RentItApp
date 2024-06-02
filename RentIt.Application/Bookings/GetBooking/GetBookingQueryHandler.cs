@@ -1,17 +1,23 @@
 ﻿using Dapper;
+using RentIt.Application.Abstractions.Authentication;
 using RentIt.Application.Abstractions.Data;
 using RentIt.Application.Abstractions.Messaging;
 using RentIt.Domain.Abstractions;
+using RentIt.Domain.Bookings;
 
 namespace RentIt.Application.Bookings.GetBooking;
 public sealed class GetBookingQueryHandler :
     IQueryHandler<GetBookingQuery, BookingResponse>
 {
     private readonly ISqlConnectionFactory m_SqlConnectionFactory;
+    private readonly IUserContext m_UserContext;
 
-    public GetBookingQueryHandler(ISqlConnectionFactory sqlConnectionFactory)
+    public GetBookingQueryHandler(
+        ISqlConnectionFactory sqlConnectionFactory,
+        IUserContext userContext)
     {
         m_SqlConnectionFactory = sqlConnectionFactory;
+        m_UserContext = userContext;
     }
 
     public async Task<Result<BookingResponse>> Handle(GetBookingQuery request, CancellationToken cancellationToken)
@@ -42,6 +48,11 @@ public sealed class GetBookingQueryHandler :
         var booking = await connection.QueryFirstOrDefaultAsync<BookingResponse>(
             sql,
             new { request.BookingId });
+
+        if (booking is null || booking.UserId != m_UserContext.UserId)
+        {
+            return Result.Failure<BookingResponse>(BookingErrors.NotFound);
+        }
 
         return booking;
     }
