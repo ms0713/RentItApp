@@ -1,0 +1,22 @@
+version: '3.4'
+
+services:
+  rentit.api:
+    image: ${DOCKER_REGISTRY-}rentitapi
+    build:
+      context: .
+      dockerfile: RentIt.Api/Dockerfile
+    depends_on:
+      - rentit-db
+
+  rentit-db:
+    image: postgres:latest
+    container_name: RentIt.Db
+    environment:
+      - POSTGRES_DB=rentit
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./.container/database:/var/lib/postgresql/data
+    ports:
+      - 5432:5432

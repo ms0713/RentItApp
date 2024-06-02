@@ -4,7 +4,7 @@ using RentIt.Application.Exceptions;
 using RentIt.Domain.Abstractions;
 
 namespace RentIt.Infrastructure;
-internal sealed class ApplicationDbContext : DbContext, IUnitOfWork
+public sealed class ApplicationDbContext : DbContext, IUnitOfWork
 {
     private readonly IPublisher m_Publisher;
 
